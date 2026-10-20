@@ -1,0 +1,22 @@
+{
+  "name": "solar-system-3d-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend API cho Solar System 3D: proxy JPL Horizons, cache, rate-limit.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0"
+  },
+  "license": "MIT"
+}

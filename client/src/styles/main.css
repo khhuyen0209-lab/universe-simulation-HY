@@ -1,0 +1,221 @@
+/* client/src/styles/main.css */
+:root {
+  --bg: #05060f;
+  --panel: rgba(14, 18, 38, 0.88);
+  --panel-border: rgba(90, 120, 200, 0.35);
+  --text: #e8ecf8;
+  --text-dim: #9aa4c4;
+  --accent: #5b8cff;
+  --accent-2: #ffcc33;
+  --danger: #ff6b6b;
+  --ok: #4ade80;
+  --btn-h: 44px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden; /* không có thanh cuộn ngoài ý muốn trong khu vực mô phỏng */
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#scene-container {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+}
+#scene-container canvas { display: block; }
+
+/* ===== Nhãn thiên thể (HTML overlay) ===== */
+#labels-layer {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+.planet-label {
+  position: absolute; top: 0; left: 0;
+  font-size: 12px;
+  color: #cdd6f4;
+  background: rgba(10, 14, 30, 0.55);
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 150, 220, 0.25);
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 1px 3px #000;
+}
+
+/* ===== Thanh trạng thái ===== */
+.status-bar {
+  position: fixed; top: 8px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+  max-width: 92vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(6px);
+}
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.dot-online { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.dot-offline { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+.stale-warning {
+  position: fixed; top: 48px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 21;
+  background: rgba(120, 40, 20, 0.92);
+  border: 1px solid var(--danger);
+  color: #ffe0c0;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 12px;
+  max-width: 92vw;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+
+/* ===== Thanh công cụ ===== */
+.toolbar {
+  position: fixed; bottom: 10px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  justify-content: center; align-items: center;
+  max-width: 96vw;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 8px 10px;
+  backdrop-filter: blur(8px);
+}
+.toolbar-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.tool-btn {
+  min-height: var(--btn-h);
+  padding: 0 12px;
+  font-size: 13px;
+  background: rgba(40, 50, 90, 0.6);
+  color: var(--text);
+  border: 1px solid rgba(120, 150, 220, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.tool-btn:hover { background: rgba(70, 90, 150, 0.7); }
+.tool-btn:active { transform: scale(0.96); }
+.tool-btn.active { background: rgba(91, 140, 255, 0.45); border-color: var(--accent); }
+.sim-time {
+  font-size: 12px; color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+  padding: 0 6px;
+  min-width: 130px;
+  text-align: center;
+}
+.planet-select {
+  min-height: var(--btn-h);
+  padding: 0 10px;
+  font-size: 13px;
+  background: rgba(40, 50, 90, 0.6);
+  color: var(--text);
+  border: 1px solid rgba(120, 150, 220, 0.3);
+  border-radius: 10px;
+  max-width: 160px;
+}
+
+/* ===== Bảng thông tin hành tinh ===== */
+.info-panel {
+  position: fixed; top: 48px; right: 10px;
+  z-index: 25;
+  width: 320px; max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.info-panel[hidden] { display: none; }
+.info-close {
+  position: absolute; top: 8px; right: 10px;
+  width: 32px; height: 32px;
+  background: transparent; border: none;
+  color: var(--text-dim); font-size: 22px; cursor: pointer;
+}
+.info-panel h2 { font-size: 18px; margin-bottom: 4px; padding-right: 30px; }
+.planet-en { color: var(--text-dim); font-size: 13px; font-weight: normal; }
+.info-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+.info-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 12px; }
+.info-grid dt { color: var(--text-dim); }
+.info-grid dd { text-align: right; font-variant-numeric: tabular-nums; }
+.info-grid dd.coord { text-align: right; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.5; }
+.src-jpl { color: var(--ok); }
+.src-kepler { color: var(--accent-2); }
+.info-note { margin-top: 10px; font-size: 10.5px; color: var(--text-dim); line-height: 1.5; border-top: 1px solid var(--panel-border); padding-top: 8px; }
+
+/* ===== Màn hình yêu cầu xoay ngang ===== */
+.orientation-guard {
+  position: fixed; inset: 0;
+  z-index: 100;
+  background: linear-gradient(160deg, #0a0e24, #141a3a);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.orientation-guard[hidden] { display: none; }
+.orientation-card {
+  text-align: center;
+  max-width: 360px;
+  color: var(--text);
+}
+.orientation-icon {
+  color: var(--accent);
+  margin-bottom: 20px;
+  animation: rotateHint 2.2s ease-in-out infinite;
+}
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
+.orientation-card h1 { font-size: 22px; margin-bottom: 12px; }
+.orientation-card p { font-size: 14px; color: var(--text-dim); line-height: 1.6; margin-bottom: 18px; }
+.btn-primary {
+  min-height: 52px;
+  padding: 0 24px;
+  font-size: 15px; font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none; border-radius: 12px;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+.btn-primary:active { transform: scale(0.97); }
+.orientation-hint { font-size: 12px !important; color: var(--text-dim) !important; }
+
+/* ===== Responsive: điện thoại ngang ===== */
+@media (max-width: 900px) and (orientation: landscape) {
+  .status-bar { font-size: 10px; padding: 4px 10px; top: 4px; }
+  .stale-warning { top: 34px; font-size: 10px; padding: 5px 10px; }
+  .toolbar { bottom: 4px; padding: 4px 6px; gap: 3px; }
+  .tool-btn { min-height: 36px; padding: 0 8px; font-size: 11px; border-radius: 8px; }
+  .planet-select { min-height: 36px; font-size: 11px; max-width: 120px; }
+  .sim-time { font-size: 10px; min-width: 100px; }
+  .info-panel { top: 30px; right: 4px; width: 240px; padding: 10px 12px; font-size: 11px; max-height: calc(100vh - 90px); }
+  .info-panel h2 { font-size: 15px; }
+  .planet-label { font-size: 10px; padding: 1px 5px; }
+}
+
+/* Desktop: info panel rộng hơn một chút */
+@media (min-width: 1200px) {
+  .info-panel { width: 360px; }
+}

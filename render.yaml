@@ -1,0 +1,38 @@
+# ===== Cấu hình triển khai Render cho Solar System 3D =====
+# Triển khai một dịch vụ Web duy nhất: Express phục vụ cả API và frontend build.
+# Đây là phương án đơn giản, chi phí thấp (1 dịch vụ), không cần CORS phức tạp.
+#
+# Cách dùng:
+#   1. Đẩy repo này lên GitHub.
+#   2. Vào Render Dashboard -> New -> Blueprint -> chọn repo này.
+#      Render sẽ tự đọc render.yaml và tạo dịch vụ.
+#   3. Trong phần Environment của dịch vụ, thêm các biến theo .env.example
+#      (PORT Render tự cấp, không cần đặt; CORS_ORIGINS có thể để trống vì cùng origin).
+#   4. Mỗi lần push lên nhánh chính, Render tự build và deploy lại.
+
+services:
+  - type: web
+    name: solar-system-3d
+    env: node
+    plan: free
+    # Build: cài dependency cho cả server và client, rồi build frontend.
+    buildCommand: "npm install && npm run install:all && npm run build:client"
+    # Start: chạy Express server (phục vụ API + static frontend từ client/dist).
+    startCommand: "npm start"
+    # Health check endpoint mà Render gọi định kỳ.
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JPL_TIMEOUT_MS
+        value: "15000"
+      - key: JPL_MAX_RETRIES
+        value: "2"
+      - key: CACHE_TTL_MS
+        value: "1800000"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"
+      # PUBLIC_API_URL để trống vì frontend và API cùng origin.
+      - key: PUBLIC_API_URL
+        value: ""
