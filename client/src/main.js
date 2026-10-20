@@ -12,7 +12,8 @@ import './styles/main.css';
 import SolarSystemScene from './scene/SolarSystemScene.js';
 import EphemerisAPI from './api/ephemerisApi.js';
 import OrientationGuard from './components/OrientationGuard.js';
-import Toolbar from './components/Toolbar.js';
+import FloatingToolbar, { loadSettings } from './components/Toolbar.js';
+import SettingsPanel from './components/SettingsPanel.js';
 import InfoPanel from './components/InfoPanel.js';
 import StatusBar from './components/StatusBar.js';
 import { PLANETS, PLANET_MAP, AU_KM } from './astronomy/constants.js';
@@ -35,7 +36,29 @@ const state = {
   selectedKey: null,
 };
 
-const toolbar = new Toolbar({
+const uiSettings = loadSettings();
+
+// Nút nhỏ để khôi phục UI khi đang ở chế độ ẩn toàn bộ (xem bao quát).
+const restoreFab = document.createElement('button');
+restoreFab.id = 'ui-restore-fab';
+restoreFab.textContent = 'Hiện UI';
+restoreFab.hidden = true;
+document.body.appendChild(restoreFab);
+
+function setUIVisible(visible) {
+  toolbar.setVisible(visible);
+  const sb = document.getElementById('status-bar'); if (sb) sb.style.display = visible ? '' : 'none';
+  const ip = document.getElementById('info-panel'); if (ip) ip.style.display = visible ? '' : 'none';
+  restoreFab.hidden = visible;
+}
+restoreFab.addEventListener('click', () => setUIVisible(true));
+
+const settingsPanel = new SettingsPanel({
+  onChange: (s) => toolbar.applySettings(s),
+});
+
+const toolbar = new FloatingToolbar({
+  settings: uiSettings,
   planets: PLANETS,
   onResetCamera: () => scene.resetCamera(),
   onToggleOrbits: (v) => scene.setOrbitsVisible(v),
@@ -49,6 +72,8 @@ const toolbar = new Toolbar({
       scheduleFetch();
     }
   },
+  onOpenSettings: () => settingsPanel.open(uiSettings),
+  onHideUI: () => setUIVisible(false),
 });
 
 // Khi chọn hành tinh -> hiển thị info panel.
