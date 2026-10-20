@@ -178,11 +178,15 @@ Firebase Hosting (miễn phí, CDN toàn cầu, HTTPS mặc định).
 
 #### Bước 2 — Cấu hình client trỏ về backend Render
 
-Mở `client/index.html`, sửa:
-```html
-<script>window.__API_BASE__ = 'https://solar-system-3d.onrender.com';</script>
+Mở `client/public/config.js`, sửa:
+```js
+window.__API_BASE__ = 'https://solar-system-3d.onrender.com';
 ```
 (điền URL Render của bạn, **không** có dấu `/` ở cuối).
+
+**Quan trọng**: `config.js` được copy nguyên vào `dist/config.js` (không bị hash).
+Nếu bạn đã có sẵn `dist/` (ví dụ dùng bản build sẵn trong ZIP), bạn có thể sửa
+trực tiếp `dist/config.js` rồi deploy lên Firebase **KHÔNG cần build lại**.
 
 #### Bước 3 — Build client
 

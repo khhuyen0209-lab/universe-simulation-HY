@@ -1,25 +1,23 @@
-# ===== Cấu hình triển khai Render cho Solar System 3D =====
-# Triển khai một dịch vụ Web duy nhất: Express phục vụ cả API và frontend build.
-# Đây là phương án đơn giản, chi phí thấp (1 dịch vụ), không cần CORS phức tạp.
+# ===== Cấu hình Render cho Solar System 3D (backend only) =====
+# Kiến trúc: Backend trên Render, Client trên Firebase Hosting (project: hy-solar-3d).
 #
 # Cách dùng:
 #   1. Đẩy repo này lên GitHub.
-#   2. Vào Render Dashboard -> New -> Blueprint -> chọn repo này.
-#      Render sẽ tự đọc render.yaml và tạo dịch vụ.
-#   3. Trong phần Environment của dịch vụ, thêm các biến theo .env.example
-#      (PORT Render tự cấp, không cần đặt; CORS_ORIGINS có thể để trống vì cùng origin).
-#   4. Mỗi lần push lên nhánh chính, Render tự build và deploy lại.
+#   2. Render Dashboard -> New -> Web Service (hoặc Blueprint) -> chọn repo.
+#   3. Render tự đọc file này, build thư mục server/ và chạy.
+#   4. Client deploy riêng lên Firebase (đã cấu hình sẵn .firebaserc = hy-solar-3d).
+#
+# Backend URL sau khi deploy: https://universe-simulation-hy.onrender.com
+# (đã đặt sẵn trong client/public/config.js và client/dist/config.js).
 
 services:
   - type: web
-    name: solar-system-3d
+    name: universe-simulation-hy
     env: node
     plan: free
-    # Build: cài dependency cho cả server và client, rồi build frontend.
-    buildCommand: "npm install && npm run install:all && npm run build:client"
-    # Start: chạy Express server (phục vụ API + static frontend từ client/dist).
+    rootDir: server
+    buildCommand: "npm install"
     startCommand: "npm start"
-    # Health check endpoint mà Render gọi định kỳ.
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -33,6 +31,6 @@ services:
         value: "1800000"
       - key: RATE_LIMIT_PER_MINUTE
         value: "60"
-      # PUBLIC_API_URL để trống vì frontend và API cùng origin.
-      - key: PUBLIC_API_URL
-        value: ""
+      # Cho phép client Firebase gọi API. Thay bằng origin của bạn nếu đổi project.
+      - key: CORS_ORIGINS
+        value: "https://hy-solar-3d.web.app,https://hy-solar-3d.firebaseapp.com"

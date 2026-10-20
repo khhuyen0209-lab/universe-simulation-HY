@@ -28,6 +28,5 @@ Thumbs.db
 .cache/
 .eslintcache
 
-# Firebase (tu tao .firebaserc tu .firebaserc.example)
-.firebaserc
+# Firebase (.firebaserc da cau hinh san project hy-solar-3d, khong chua bi mat)
 .firebase/

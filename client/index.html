@@ -44,13 +44,9 @@
     <!-- Cảnh báo dữ liệu cũ -->
     <div id="stale-warning" class="stale-warning" hidden role="alert"></div>
 
-    <!-- Cấu hình: URL backend.
-         Rỗng = cùng origin (deploy chung 1 dịch vụ Render).
-         Nếu deploy client lên Firebase Hosting và server lên Render riêng,
-         điền URL backend Render (không có dấu gạch chéo cuối), ví dụ:
-         window.__API_BASE__ = 'https://solar-system-3d.onrender.com';
-         Sau đó build lại client trước khi deploy lên Firebase. -->
-    <script>window.__API_BASE__ = '';</script>
+    <!-- Cấu hình URL backend: sửa trong file public/config.js (được copy nguyên vào dist/config.js,
+         có thể sửa trực tiếp trong dist/ mà KHÔNG cần build lại khi deploy Firebase). -->
+    <script src="./config.js"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
