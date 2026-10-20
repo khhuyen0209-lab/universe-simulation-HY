@@ -20,6 +20,10 @@ export const SUN = {
   displayRadius: 4.2,
   color: 0xffcc33,
   emissive: 0xffaa00,
+  type: 'star',
+  temperatureSurfaceK: 5778,
+  massEarths: 333000,
+  description: 'Ngôi sao trung tâm của Hệ Mặt Trời, chứa 99.8% khối lượng toàn hệ.',
 };
 
 // 8 hành tinh. `orbit` = elements Kepler trung bình J2000.
@@ -94,6 +98,7 @@ export const PLANETS = [
 ];
 
 export const PLANET_MAP = Object.fromEntries(PLANETS.map((p) => [p.key, p]));
+export const BODY_MAP = { sun: SUN, ...PLANET_MAP };
 
 // Ánh xạ tọa độ: hệ hoàng đạo J2000 (x,y trong mặt phẳng hoàng đạo, z vuông góc)
 // sang hệ tọa độ Three.js (y lên). Quỹ đạo nằm trong mặt phẳng XZ.

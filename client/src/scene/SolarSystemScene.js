@@ -158,7 +158,7 @@ export default class SolarSystemScene {
     this._addStars(isMobile ? 1500 : 4000);
 
     this.camera = new THREE.PerspectiveCamera(55, container.clientWidth / container.clientHeight, 0.1, 2000);
-    this.defaultCameraPos = new THREE.Vector3(0, 45, 70);
+    this.defaultCameraPos = new THREE.Vector3(0, 55, 85);
     this.camera.position.copy(this.defaultCameraPos);
     this.defaultMinDistance = 6;
 
@@ -166,7 +166,7 @@ export default class SolarSystemScene {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.minDistance = this.defaultMinDistance;
-    this.controls.maxDistance = 300;
+    this.controls.maxDistance = 400;
 
     const sunLight = new THREE.PointLight(0xffffff, 2.5, 0, 0);
     sunLight.position.set(0, 0, 0);
@@ -177,6 +177,7 @@ export default class SolarSystemScene {
     const sunGeo = new THREE.SphereGeometry(SUN.displayRadius, sphereSeg, sphereSeg / 2);
     const sunMat = new THREE.MeshBasicMaterial({ color: 0xffdd55 });
     this.sun = new THREE.Mesh(sunGeo, sunMat);
+    this.sun.userData.planetKey = 'sun';
     this.scene.add(this.sun);
     const glowCanvas = document.createElement('canvas');
     glowCanvas.width = glowCanvas.height = 256;
@@ -211,11 +212,23 @@ export default class SolarSystemScene {
       this.planetMeshes.set(p.key, mesh);
 
       if (p.hasRing) {
-        const ringGeo = new THREE.RingGeometry(p.displayRadius * 1.4, p.displayRadius * 2.4, 64);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xd8cfa8, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2 - 0.35;
-        mesh.add(ring);
+        // Vành đai Sao Thổ chi tiết: nhiều vòng với màu/độ trong khác nhau + khe Cassini (khoảng trống).
+        const ringGroup = new THREE.Group();
+        const rings = [
+          { inner: 1.35, outer: 1.70, color: 0xc8b88a, opacity: 0.45 },  // vành C (trong, mờ)
+          { inner: 1.75, outer: 2.15, color: 0xe8dcb0, opacity: 0.8 },   // vành B (sáng nhất)
+          { inner: 2.18, outer: 2.30, color: 0x000000, opacity: 0.0 },   // khe Cassini (trống)
+          { inner: 2.33, outer: 2.62, color: 0xd8c890, opacity: 0.55 },  // vành A
+          { inner: 2.66, outer: 2.82, color: 0xb8a878, opacity: 0.25 },  // vành F (ngoài, mờ)
+        ];
+        rings.forEach((r) => {
+          if (r.opacity <= 0) return;
+          const g = new THREE.RingGeometry(p.displayRadius * r.inner, p.displayRadius * r.outer, 96);
+          const m = new THREE.MeshBasicMaterial({ color: r.color, side: THREE.DoubleSide, transparent: true, opacity: r.opacity, depthWrite: false });
+          ringGroup.add(new THREE.Mesh(g, m));
+        });
+        ringGroup.rotation.x = Math.PI / 2 - 0.35;
+        mesh.add(ringGroup);
       }
 
       // Đường quỹ đạo: dùng orbitDisplayPoints -> khớp 100% vị trí hành tinh.
@@ -290,7 +303,7 @@ export default class SolarSystemScene {
     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const meshes = Array.from(this.planetMeshes.values());
+    const meshes = [this.sun, ...Array.from(this.planetMeshes.values())];
     const hits = this.raycaster.intersectObjects(meshes, false);
     if (hits.length > 0) this.selectPlanet(hits[0].object.userData.planetKey);
     else this.selectPlanet(null);
@@ -353,19 +366,24 @@ export default class SolarSystemScene {
     this.planetMeshes.forEach((mesh) => { mesh.rotation.y += dt * 0.15; });
     this.sun.rotation.y += dt * 0.05;
 
-    // Camera theo dõi hành tinh đang chọn (bay tới, giới hạn zoom gần).
-    if (this.focusKey && this.lastPositions[this.focusKey]) {
-      const target = new THREE.Vector3(this.lastPositions[this.focusKey].x, this.lastPositions[this.focusKey].y, this.lastPositions[this.focusKey].z);
-      const planetR = PLANET_MAP[this.focusKey].displayRadius;
-      this.controls.minDistance = Math.max(planetR * 2.2, 1.5);
-      this.controls.target.lerp(target, 0.08);
-      // Camera đặt cách hành tinh một khoảng ~5*bán kính, hướng nhìn từ ngoài vào.
-      const dir = this.camera.position.clone().sub(target);
-      if (dir.lengthSq() < 1e-6) dir.set(0, 1, 1);
-      dir.normalize().multiplyScalar(planetR * 5);
-      const desiredCam = target.clone().add(dir);
-      this.camera.position.lerp(desiredCam, 0.04);
-    } else if (!this.focusKey) {
+    // Camera theo dõi thiên thể đang chọn (bay tới, giới hạn zoom gần).
+    if (this.focusKey) {
+      let target = null, bodyR = 1;
+      if (this.focusKey === 'sun') { target = new THREE.Vector3(0, 0, 0); bodyR = SUN.displayRadius; }
+      else if (this.lastPositions[this.focusKey]) {
+        const lp = this.lastPositions[this.focusKey];
+        target = new THREE.Vector3(lp.x, lp.y, lp.z);
+        bodyR = PLANET_MAP[this.focusKey].displayRadius;
+      }
+      if (target) {
+        this.controls.minDistance = Math.max(bodyR * 2.2, 1.5);
+        this.controls.target.lerp(target, 0.08);
+        const dir = this.camera.position.clone().sub(target);
+        if (dir.lengthSq() < 1e-6) dir.set(0, 1, 1);
+        dir.normalize().multiplyScalar(bodyR * 5);
+        this.camera.position.lerp(target.clone().add(dir), 0.04);
+      }
+    } else {
       this.controls.minDistance = this.defaultMinDistance;
     }
 

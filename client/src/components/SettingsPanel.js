@@ -1,12 +1,13 @@
 // client/src/components/SettingsPanel.js
-// Panel cài đặt bố cục: chọn vị trí mặc định của overlay, bật/tắt từng nút chức năng,
-// đặt lại mặc định. Lưu vào localStorage (qua saveSettings từ Toolbar.js).
-
+// Panel cài đặt: vị trí mặc định (không còn dùng vì toolbar cố định, giữ tương thích),
+// bật/tắt từng nút, đổi ngôn ngữ Việt/Anh, đặt lại mặc định.
 import { saveSettings, DEFAULT_SETTINGS } from './Toolbar.js';
+import { t, setLang, getLang } from '../api/i18n.js';
 
 export default class SettingsPanel {
-  constructor({ onChange }) {
+  constructor({ onChange, onLangChange }) {
     this.onChange = onChange;
+    this.onLangChange = onLangChange;
     this.el = document.createElement('div');
     this.el.className = 'settings-panel';
     this.el.hidden = true;
@@ -18,35 +19,30 @@ export default class SettingsPanel {
     this.el.hidden = false;
     this._render();
   }
-
   close() { this.el.hidden = true; }
 
   _render() {
     const s = this.settings;
-    const positions = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-    const posLabels = { 'top-left': 'Trên-Trái', 'top-right': 'Trên-Phải', 'bottom-left': 'Dưới-Trái', 'bottom-right': 'Dưới-Phải' };
     const buttons = [
-      ['reset', 'Nút Mặc định (camera)'],
-      ['orbits', 'Nút bật/tắt Quỹ đạo'],
+      ['reset', 'Nút Đặt lại góc nhìn'],
+      ['orbits', 'Nút bật/tắt Đường quỹ đạo'],
       ['labels', 'Nút bật/tắt Nhãn'],
-      ['time', 'Điều khiển thời gian (tua/tốc độ)'],
+      ['belts', 'Nút bật/tắt Vành đai'],
       ['picker', 'Danh sách chọn hành tinh'],
-      ['belts', 'Vành đai tiểu hành tinh & Kuiper'],
     ];
+    const lang = getLang();
     this.el.innerHTML = `
       <div class="settings-card">
         <div class="settings-header">
-          <h3>Cài đặt giao diện</h3>
-          <button class="settings-close" aria-label="Đóng">×</button>
+          <h3>${t('settings')}</h3>
+          <button class="settings-close" aria-label="${t('close')}">×</button>
         </div>
         <div class="settings-section">
-          <h4>Vị trí mặc định của thanh công cụ</h4>
+          <h4>${t('language')}</h4>
           <div class="pos-grid">
-            ${positions.map((p) => `
-              <button class="pos-btn ${s.position === p ? 'active' : ''}" data-pos="${p}">${posLabels[p]}</button>
-            `).join('')}
+            <button class="pos-btn ${lang === 'vi' ? 'active' : ''}" data-lang="vi">Tiếng Việt</button>
+            <button class="pos-btn ${lang === 'en' ? 'active' : ''}" data-lang="en">English</button>
           </div>
-          <p class="settings-hint">Bạn cũng có thể kéo trực tiếp thanh công cụ (vùng có ký tự ⠿) để đặt ở bất kỳ đâu.</p>
         </div>
         <div class="settings-section">
           <h4>Hiển thị các nút chức năng</h4>
@@ -63,12 +59,10 @@ export default class SettingsPanel {
         </div>
       </div>
     `;
-
     this.el.querySelector('.settings-close').addEventListener('click', () => this.close());
-    this.el.querySelectorAll('[data-pos]').forEach((b) => b.addEventListener('click', () => {
-      this.settings.position = b.dataset.pos;
-      saveSettings(this.settings);
-      this.onChange(this.settings);
+    this.el.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => {
+      setLang(b.dataset.lang);
+      this.onLangChange && this.onLangChange(b.dataset.lang);
       this._render();
     }));
     this.el.querySelectorAll('[data-btn]').forEach((cb) => cb.addEventListener('change', () => {

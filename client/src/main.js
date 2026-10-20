@@ -12,11 +12,13 @@ import './styles/main.css';
 import SolarSystemScene from './scene/SolarSystemScene.js';
 import EphemerisAPI from './api/ephemerisApi.js';
 import OrientationGuard from './components/OrientationGuard.js';
-import FloatingToolbar, { loadSettings } from './components/Toolbar.js';
+import IconToolbar, { loadSettings } from './components/Toolbar.js';
+import TimePanel from './components/TimePanel.js';
 import SettingsPanel from './components/SettingsPanel.js';
 import InfoPanel from './components/InfoPanel.js';
 import StatusBar from './components/StatusBar.js';
-import { PLANETS, PLANET_MAP, AU_KM } from './astronomy/constants.js';
+import { setLang } from './api/i18n.js';
+import { PLANETS, PLANET_MAP, BODY_MAP, AU_KM } from './astronomy/constants.js';
 import { keplerPosition, isoToJulianDate, auToDisplay } from './astronomy/kepler.js';
 
 const container = document.getElementById('scene-container');
@@ -47,17 +49,26 @@ document.body.appendChild(restoreFab);
 
 function setUIVisible(visible) {
   toolbar.setVisible(visible);
+  timePanel.setVisible(visible);
   const sb = document.getElementById('status-bar'); if (sb) sb.style.display = visible ? '' : 'none';
   const ip = document.getElementById('info-panel'); if (ip) ip.style.display = visible ? '' : 'none';
   restoreFab.hidden = visible;
 }
 restoreFab.addEventListener('click', () => setUIVisible(true));
 
+const timePanel = new TimePanel({
+  onTimeControl: (cmd) => {
+    if (cmd.type === 'pause') state.paused = cmd.paused;
+    else if (cmd.type === 'speed') state.speed = cmd.value;
+    else if (cmd.type === 'jump') { state.simTime = new Date(state.simTime.getTime() + cmd.deltaDays * 86400 * 1000); scheduleFetch(); }
+  },
+});
 const settingsPanel = new SettingsPanel({
   onChange: (s) => toolbar.applySettings(s),
+  onLangChange: () => { toolbar._render(); timePanel._render(); },
 });
 
-const toolbar = new FloatingToolbar({
+const toolbar = new IconToolbar({
   settings: uiSettings,
   planets: PLANETS,
   onResetCamera: () => scene.resetCamera(),
@@ -65,14 +76,6 @@ const toolbar = new FloatingToolbar({
   onToggleLabels: (v) => scene.setLabelsVisible(v),
   onToggleBelts: (v) => scene.setBeltsVisible(v),
   onSelectPlanet: (key) => { if (key) scene.selectPlanet(key); else scene.selectPlanet(null); },
-  onTimeControl: (cmd) => {
-    if (cmd.type === 'pause') state.paused = cmd.paused;
-    else if (cmd.type === 'speed') state.speed = cmd.value;
-    else if (cmd.type === 'jump') {
-      state.simTime = new Date(state.simTime.getTime() + cmd.deltaDays * 86400 * 1000);
-      scheduleFetch();
-    }
-  },
   onOpenSettings: () => settingsPanel.open(uiSettings),
   onHideUI: () => setUIVisible(false),
 });
@@ -80,7 +83,7 @@ const toolbar = new FloatingToolbar({
 // Khi chọn hành tinh -> hiển thị info panel.
 scene.onSelect = (key) => {
   state.selectedKey = key;
-  const sel = document.querySelector('.planet-select');
+  const sel = document.querySelector('.icon-planet-select');
   if (sel) sel.value = key || '';
   if (!key) { infoPanel.hide(); return; }
   updateInfoPanel();
@@ -89,7 +92,7 @@ scene.onSelect = (key) => {
 function updateInfoPanel() {
   const key = state.selectedKey;
   if (!key) return;
-  const planet = PLANET_MAP[key];
+  const planet = BODY_MAP[key];
   const pos = computePlanetPosition(key, state.simTime.toISOString());
   const distanceAu = pos.positionAu ? Math.hypot(pos.positionAu.x, pos.positionAu.y, pos.positionAu.z) : null;
   infoPanel.show({
@@ -103,6 +106,7 @@ function updateInfoPanel() {
 
 // Tính vị trí một hành tinh tại isoTime. Trả về { display, positionAu, source }.
 function computePlanetPosition(key, isoTime) {
+  if (key === 'sun') return { display: { x: 0, y: 0, z: 0 }, positionAu: { x: 0, y: 0, z: 0 }, source: 'PHYSICAL' };
   const planet = PLANET_MAP[key];
   const jd = isoToJulianDate(isoTime);
 
@@ -160,7 +164,7 @@ function tick() {
   if (!state.paused) {
     state.simTime = new Date(state.simTime.getTime() + dt * state.speed * 1000);
   }
-  toolbar.setSimTime(state.simTime.toISOString());
+  timePanel.setSimTime(state.simTime.toISOString());
 
   // Tính vị trí 8 hành tinh.
   const positionsMap = {};

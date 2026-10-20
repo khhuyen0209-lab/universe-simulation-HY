@@ -95,8 +95,9 @@ export function keplerPosition(orbit, jd) {
 export function auToDisplay(auVec) {
   const r = Math.hypot(auVec.x, auVec.y, auVec.z);
   if (r < 1e-9) return { x: 0, y: 0, z: 0 };
-  // Nén khoảng cách: displayR = 6 + 10*sqrt(r) (AU). 6 offset để Mặt Trời không chạm Sao Thủy.
-  const displayR = 6 + 10 * Math.sqrt(r);
+  // Nén khoảng cách: hệ số và offset tăng lên để các hành tinh trong (Thủy, Kim, Trái Đất, Hỏa)
+  // không bị xê vào nhau. displayR = 8 + 14*sqrt(r) (AU).
+  const displayR = 8 + 14 * Math.sqrt(r);
   const scale = displayR / r;
   return { x: auVec.x * scale, y: auVec.z * scale, z: auVec.y * scale }; // map ecliptic z -> three y
 }

@@ -1,14 +1,13 @@
 // client/src/components/Toolbar.js
-// FloatingToolbar: overlay nổi, kéo được, thu gọn, chuyển cạnh, ẩn toàn bộ UI.
-// Mặc định ở góc trên-trái (phù hợp mobile landscape), các nút xếp ngang.
-// Cấu hình (vị trí, nút nào hiển thị) được lưu vào localStorage qua SettingsPanel.
+// IconToolbar: cố định góc dưới-phải, dạng dọc, chỉ dùng icon SVG (không chữ, có tooltip).
+// Có thể thu gọn còn một nút. Cấu hình hiển thị từng nút lưu trong localStorage.
+import { t } from '../api/i18n.js';
 
 const SETTINGS_KEY = 'ss3d-ui-settings';
 
 export const DEFAULT_SETTINGS = {
-  position: 'top-left', // top-left | top-right | bottom-left | bottom-right
   collapsed: false,
-  showButtons: { reset: true, orbits: true, labels: true, belts: true, time: true, picker: true },
+  showButtons: { reset: true, orbits: true, labels: true, belts: true, picker: true },
 };
 
 export function loadSettings() {
@@ -16,189 +15,79 @@ export function loadSettings() {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS, showButtons: { ...DEFAULT_SETTINGS.showButtons } };
     const s = JSON.parse(raw);
-    return {
-      ...DEFAULT_SETTINGS,
-      ...s,
-      showButtons: { ...DEFAULT_SETTINGS.showButtons, ...(s.showButtons || {}) },
-    };
-  } catch {
-    return { ...DEFAULT_SETTINGS, showButtons: { ...DEFAULT_SETTINGS.showButtons } };
-  }
+    return { ...DEFAULT_SETTINGS, ...s, showButtons: { ...DEFAULT_SETTINGS.showButtons, ...(s.showButtons || {}) } };
+  } catch { return { ...DEFAULT_SETTINGS, showButtons: { ...DEFAULT_SETTINGS.showButtons } }; }
 }
+export function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ } }
 
-export function saveSettings(s) {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
-}
+const ICON = {
+  reset: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>',
+  orbits: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="4"/><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(60 12 12)"/></svg>',
+  labels: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>',
+  belts: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="3.5"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  hide: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+  expand: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  collapse: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>',
+};
 
-export default class FloatingToolbar {
-  constructor({ settings, planets, onResetCamera, onToggleOrbits, onToggleLabels, onToggleBelts, onTimeControl, onSelectPlanet, onOpenSettings, onHideUI }) {
+export default class IconToolbar {
+  constructor({ settings, planets, onResetCamera, onToggleOrbits, onToggleLabels, onToggleBelts, onSelectPlanet, onOpenSettings, onHideUI }) {
     this.settings = settings;
     this.planets = planets || [];
-    this.callbacks = { onResetCamera, onToggleOrbits, onToggleLabels, onToggleBelts, onTimeControl, onSelectPlanet, onOpenSettings, onHideUI };
-    this.paused = false;
-    this.speedIndex = 1;
-    this.speedLabels = ['1×', '60×', '1 ngày/s', '7 ngày/s'];
-    this.speedValues = [1, 60, 86400, 7 * 86400];
-    this.visible = true;
-    this._customPos = null;
-
+    this.cb = { onResetCamera, onToggleOrbits, onToggleLabels, onToggleBelts, onSelectPlanet, onOpenSettings, onHideUI };
+    this.states = { orbits: true, labels: true, belts: true };
     this.el = document.createElement('div');
-    this.el.className = 'floating-toolbar';
-    this.el.id = 'floating-toolbar';
+    this.el.className = 'icon-toolbar';
     document.body.appendChild(this.el);
-
     this._render();
-    this._applyPosition();
-    this._attachDrag();
-    this._applyCollapsed();
   }
 
   _render() {
     const sb = this.settings.showButtons;
+    const collapsed = this.settings.collapsed;
     this.el.innerHTML = `
-      <div class="ft-handle" title="Kéo để di chuyển">
-        <span class="ft-drag" aria-hidden="true">⠿</span>
-        <button class="ft-icon-btn" data-act="collapse" title="Thu gọn / Mở rộng">−</button>
-        <button class="ft-icon-btn" data-act="flip" title="Chuyển sang cạnh kia">⇄</button>
-        <button class="ft-icon-btn" data-act="settings" title="Cài đặt bố cục">⚙</button>
-        <button class="ft-icon-btn" data-act="hide" title="Ẩn toàn bộ UI (xem bao quát)">⛶</button>
-      </div>
-      <div class="ft-content">
-        ${sb.reset ? '<button class="ft-btn" data-action="reset">Mặc định</button>' : ''}
-        ${sb.orbits ? '<button class="ft-btn active" data-action="orbits">Quỹ đạo</button>' : ''}
-        ${sb.labels ? '<button class="ft-btn active" data-action="labels">Nhãn</button>' : ''}
-        ${sb.belts ? '<button class="ft-btn active" data-action="belts">Vành đai</button>' : ''}
-        ${sb.time ? `
-          <button class="ft-btn" data-action="rewind">−1 ngày</button>
-          <button class="ft-btn" data-action="pause">Tạm dừng</button>
-          <button class="ft-btn" data-action="forward">+1 ngày</button>
-          <button class="ft-btn" data-action="speed">Tốc độ: ${this.speedLabels[this.speedIndex]}</button>
-          <span class="sim-time" id="sim-time-display"></span>
-        ` : ''}
+      <button class="icon-btn" data-act="collapse" title="${collapsed ? t('expand') : t('collapse')}">${collapsed ? ICON.expand : ICON.collapse}</button>
+      ${collapsed ? '' : `
+        ${sb.reset ? `<button class="icon-btn" data-action="reset" title="${t('reset')}">${ICON.reset}</button>` : ''}
+        ${sb.orbits ? `<button class="icon-btn active" data-action="orbits" title="${t('orbits')}">${ICON.orbits}</button>` : ''}
+        ${sb.labels ? `<button class="icon-btn active" data-action="labels" title="${t('labels')}">${ICON.labels}</button>` : ''}
+        ${sb.belts ? `<button class="icon-btn active" data-action="belts" title="${t('belts')}">${ICON.belts}</button>` : ''}
         ${sb.picker ? `
-          <select class="planet-select" aria-label="Chọn hành tinh">
-            <option value="">— Chọn hành tinh —</option>
-            ${this.planets.map((p) => `<option value="${p.key}">${p.name}</option>`).join('')}
-          </select>
-        ` : ''}
-      </div>
+          <div class="icon-picker-wrap" title="${t('pickPlanet')}">
+            <span class="icon-btn icon-picker-btn">${ICON.globe}</span>
+            <select class="icon-planet-select" aria-label="${t('pickPlanet')}">
+              <option value="">${t('pickPlanet')}</option>
+              <option value="sun">${t('sun')}</option>
+              ${this.planets.map((p) => `<option value="${p.key}">${p.name}</option>`).join('')}
+            </select>
+          </div>` : ''}
+        <button class="icon-btn" data-action="settings" title="${t('settings')}">${ICON.settings}</button>
+        <button class="icon-btn" data-action="hide" title="${t('hideUI')}">${ICON.hide}</button>
+      `}
     `;
-
     this.el.addEventListener('click', (e) => {
-      const iconBtn = e.target.closest('[data-act]');
-      if (iconBtn) {
-        const act = iconBtn.dataset.act;
-        if (act === 'collapse') this.toggleCollapse();
-        else if (act === 'flip') this.flipEdge();
-        else if (act === 'settings') this.callbacks.onOpenSettings && this.callbacks.onOpenSettings();
-        else if (act === 'hide') this.callbacks.onHideUI && this.callbacks.onHideUI();
-        return;
-      }
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
-      const action = btn.dataset.action;
-      const cb = this.callbacks;
-      if (action === 'reset') cb.onResetCamera();
-      else if (action === 'orbits') { btn.classList.toggle('active'); cb.onToggleOrbits(btn.classList.contains('active')); }
-      else if (action === 'labels') { btn.classList.toggle('active'); cb.onToggleLabels(btn.classList.contains('active')); }
-      else if (action === 'belts') { btn.classList.toggle('active'); cb.onToggleBelts && cb.onToggleBelts(btn.classList.contains('active')); }
-      else if (action === 'rewind') cb.onTimeControl({ type: 'jump', deltaDays: -1 });
-      else if (action === 'forward') cb.onTimeControl({ type: 'jump', deltaDays: +1 });
-      else if (action === 'pause') {
-        this.paused = !this.paused;
-        btn.textContent = this.paused ? 'Tiếp tục' : 'Tạm dừng';
-        cb.onTimeControl({ type: 'pause', paused: this.paused });
-      }
-      else if (action === 'speed') {
-        this.speedIndex = (this.speedIndex + 1) % this.speedValues.length;
-        btn.textContent = `Tốc độ: ${this.speedLabels[this.speedIndex]}`;
-        cb.onTimeControl({ type: 'speed', value: this.speedValues[this.speedIndex] });
-      }
+      const a = btn.dataset.action;
+      if (a === 'reset') this.cb.onResetCamera();
+      else if (a === 'orbits') { this.states.orbits = !this.states.orbits; btn.classList.toggle('active', this.states.orbits); this.cb.onToggleOrbits(this.states.orbits); }
+      else if (a === 'labels') { this.states.labels = !this.states.labels; btn.classList.toggle('active', this.states.labels); this.cb.onToggleLabels(this.states.labels); }
+      else if (a === 'belts') { this.states.belts = !this.states.belts; btn.classList.toggle('active', this.states.belts); this.cb.onToggleBelts(this.states.belts); }
+      else if (a === 'settings') this.cb.onOpenSettings();
+      else if (a === 'hide') this.cb.onHideUI();
     });
-
-    const sel = this.el.querySelector('.planet-select');
-    if (sel) sel.addEventListener('change', (e) => this.callbacks.onSelectPlanet(e.target.value || null));
-
-    this.simTimeEl = document.getElementById('sim-time-display');
-  }
-
-  _applyPosition() {
-    if (this._customPos) { this.el.style.left = this._customPos.x + 'px'; this.el.style.top = this._customPos.y + 'px'; return; }
-    const p = this.settings.position;
-    const margin = 10;
-    this.el.style.left = p.includes('left') ? margin + 'px' : 'auto';
-    this.el.style.right = p.includes('right') ? margin + 'px' : 'auto';
-    this.el.style.top = p.includes('top') ? margin + 'px' : 'auto';
-    this.el.style.bottom = p.includes('bottom') ? margin + 'px' : 'auto';
-  }
-
-  toggleCollapse() {
-    this.settings.collapsed = !this.settings.collapsed;
-    saveSettings(this.settings);
-    this._applyCollapsed();
-  }
-  _applyCollapsed() {
-    this.el.classList.toggle('collapsed', this.settings.collapsed);
-    const btn = this.el.querySelector('[data-act="collapse"]');
-    if (btn) btn.textContent = this.settings.collapsed ? '+' : '−';
-  }
-
-  flipEdge() {
-    const p = this.settings.position;
-    this.settings.position = p.includes('left') ? p.replace('left', 'right') : p.replace('right', 'left');
-    this._customPos = null;
-    saveSettings(this.settings);
-    this._applyPosition();
-  }
-
-  _attachDrag() {
-    const handle = this.el.querySelector('.ft-handle');
-    let startX, startY, origX, origY, dragging = false;
-    handle.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('button')) return;
-      dragging = true;
-      startX = e.clientX; startY = e.clientY;
-      const rect = this.el.getBoundingClientRect();
-      origX = rect.left; origY = rect.top;
-      this.el.style.right = 'auto'; this.el.style.bottom = 'auto';
-      this.el.style.left = origX + 'px'; this.el.style.top = origY + 'px';
-      try { handle.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    this.el.querySelector('[data-act="collapse"]').addEventListener('click', () => {
+      this.settings.collapsed = !this.settings.collapsed;
+      saveSettings(this.settings);
+      this._render();
     });
-    handle.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      let nx = origX + (e.clientX - startX);
-      let ny = origY + (e.clientY - startY);
-      const maxX = window.innerWidth - this.el.offsetWidth;
-      const maxY = window.innerHeight - this.el.offsetHeight;
-      nx = Math.max(0, Math.min(nx, Math.max(0, maxX)));
-      ny = Math.max(0, Math.min(ny, Math.max(0, maxY)));
-      this._customPos = { x: nx, y: ny };
-      this.el.style.left = nx + 'px'; this.el.style.top = ny + 'px';
-    });
-    const end = () => { dragging = false; };
-    handle.addEventListener('pointerup', end);
-    handle.addEventListener('pointercancel', end);
+    const sel = this.el.querySelector('.icon-planet-select');
+    if (sel) sel.addEventListener('change', (e) => { this.cb.onSelectPlanet(e.target.value || null); sel.value = ''; });
   }
 
-  applySettings(s) {
-    this.settings = s;
-    this._customPos = null;
-    this._render();
-    this._applyPosition();
-    this._applyCollapsed();
-  }
-
-  setSimTime(iso) {
-    if (this.simTimeEl) {
-      const d = new Date(iso);
-      this.simTimeEl.textContent = d.toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' });
-    }
-  }
-
-  setVisible(v) {
-    this.visible = v;
-    this.el.style.display = v ? '' : 'none';
-  }
-
+  applySettings(s) { this.settings = s; this._render(); }
+  setVisible(v) { this.el.style.display = v ? '' : 'none'; }
   dispose() { this.el.remove(); }
 }
