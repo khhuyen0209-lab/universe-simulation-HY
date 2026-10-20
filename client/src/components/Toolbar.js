@@ -8,7 +8,7 @@ const SETTINGS_KEY = 'ss3d-ui-settings';
 export const DEFAULT_SETTINGS = {
   position: 'top-left', // top-left | top-right | bottom-left | bottom-right
   collapsed: false,
-  showButtons: { reset: true, orbits: true, labels: true, time: true, picker: true },
+  showButtons: { reset: true, orbits: true, labels: true, belts: true, time: true, picker: true },
 };
 
 export function loadSettings() {
@@ -31,10 +31,10 @@ export function saveSettings(s) {
 }
 
 export default class FloatingToolbar {
-  constructor({ settings, planets, onResetCamera, onToggleOrbits, onToggleLabels, onTimeControl, onSelectPlanet, onOpenSettings, onHideUI }) {
+  constructor({ settings, planets, onResetCamera, onToggleOrbits, onToggleLabels, onToggleBelts, onTimeControl, onSelectPlanet, onOpenSettings, onHideUI }) {
     this.settings = settings;
     this.planets = planets || [];
-    this.callbacks = { onResetCamera, onToggleOrbits, onToggleLabels, onTimeControl, onSelectPlanet, onOpenSettings, onHideUI };
+    this.callbacks = { onResetCamera, onToggleOrbits, onToggleLabels, onToggleBelts, onTimeControl, onSelectPlanet, onOpenSettings, onHideUI };
     this.paused = false;
     this.speedIndex = 1;
     this.speedLabels = ['1×', '60×', '1 ngày/s', '7 ngày/s'];
@@ -67,6 +67,7 @@ export default class FloatingToolbar {
         ${sb.reset ? '<button class="ft-btn" data-action="reset">Mặc định</button>' : ''}
         ${sb.orbits ? '<button class="ft-btn active" data-action="orbits">Quỹ đạo</button>' : ''}
         ${sb.labels ? '<button class="ft-btn active" data-action="labels">Nhãn</button>' : ''}
+        ${sb.belts ? '<button class="ft-btn active" data-action="belts">Vành đai</button>' : ''}
         ${sb.time ? `
           <button class="ft-btn" data-action="rewind">−1 ngày</button>
           <button class="ft-btn" data-action="pause">Tạm dừng</button>
@@ -100,6 +101,7 @@ export default class FloatingToolbar {
       if (action === 'reset') cb.onResetCamera();
       else if (action === 'orbits') { btn.classList.toggle('active'); cb.onToggleOrbits(btn.classList.contains('active')); }
       else if (action === 'labels') { btn.classList.toggle('active'); cb.onToggleLabels(btn.classList.contains('active')); }
+      else if (action === 'belts') { btn.classList.toggle('active'); cb.onToggleBelts && cb.onToggleBelts(btn.classList.contains('active')); }
       else if (action === 'rewind') cb.onTimeControl({ type: 'jump', deltaDays: -1 });
       else if (action === 'forward') cb.onTimeControl({ type: 'jump', deltaDays: +1 });
       else if (action === 'pause') {

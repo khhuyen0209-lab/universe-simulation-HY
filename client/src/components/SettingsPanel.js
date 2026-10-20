@@ -31,6 +31,7 @@ export default class SettingsPanel {
       ['labels', 'Nút bật/tắt Nhãn'],
       ['time', 'Điều khiển thời gian (tua/tốc độ)'],
       ['picker', 'Danh sách chọn hành tinh'],
+      ['belts', 'Vành đai tiểu hành tinh & Kuiper'],
     ];
     this.el.innerHTML = `
       <div class="settings-card">

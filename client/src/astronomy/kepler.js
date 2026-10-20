@@ -100,3 +100,35 @@ export function auToDisplay(auVec) {
   const scale = displayR / r;
   return { x: auVec.x * scale, y: auVec.z * scale, z: auVec.y * scale }; // map ecliptic z -> three y
 }
+
+/**
+ * Tạo các điểm trên đường quỹ đạo (đơn vị cảnh Three.js), DÙNG CHÍNH xác hàm auToDisplay
+ * để đường quỹ đạo khớp 100% với vị trí hành tinh tại mọi thời điểm.
+ * Lặp theo sai lệch trung bình M từ 0 -> 2π (hình dạng quỹ đạo không đổi theo thời gian).
+ */
+export function orbitDisplayPoints(orbit, n = 160) {
+  const { a, e, i, peri, node } = orbit;
+  const omega = (peri - node) * DEG;
+  const inc = i * DEG;
+  const Omega = node * DEG;
+  const cosO = Math.cos(Omega), sinO = Math.sin(Omega);
+  const coso = Math.cos(omega), sino = Math.sin(omega);
+  const cosi = Math.cos(inc), sini = Math.sin(inc);
+  const pts = [];
+  for (let k = 0; k <= n; k++) {
+    const M = (k / n) * Math.PI * 2;
+    const E = solveKepler(M, e);
+    const xp = a * (Math.cos(E) - e);
+    const yp = a * Math.sqrt(1 - e * e) * Math.sin(E);
+    const x1 = xp * coso - yp * sino;
+    const y1 = xp * sino + yp * coso;
+    const x2 = x1;
+    const y2 = y1 * cosi;
+    const z2 = y1 * sini;
+    const x = x2 * cosO - y2 * sinO;
+    const y = x2 * sinO + y2 * cosO;
+    const z = z2;
+    pts.push(auToDisplay({ x, y, z }));
+  }
+  return pts;
+}

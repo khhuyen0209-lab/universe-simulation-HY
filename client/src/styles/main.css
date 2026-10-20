@@ -344,3 +344,27 @@ html, body {
   .floating-toolbar .planet-select { min-height: 34px; font-size: 11px; max-width: 110px; }
   .floating-toolbar .sim-time { font-size: 10px; min-width: 80px; }
 }
+
+/* Status bar chuyển xuống dưới (bottom), tránh đè khu vực quan sát */
+.status-bar { top: auto; bottom: 8px; }
+.stale-warning { top: auto; bottom: 42px; }
+
+/* Nhãn Mặt Trời nổi bật */
+.planet-label.sun-label { color: #ffdd55; font-weight: 600; border-color: rgba(255, 200, 80, 0.4); }
+
+/* Info panel: header + thu gọn thành tab nhỏ */
+.info-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--panel-border); }
+.info-title { flex: 1; font-size: 15px; font-weight: 600; cursor: pointer; }
+.info-icon-btn { width: 28px; height: 28px; min-width: 28px; background: rgba(40, 50, 90, 0.5); color: var(--text); border: 1px solid rgba(120, 150, 220, 0.25); border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1; }
+.info-icon-btn:hover { background: rgba(70, 90, 150, 0.7); }
+.info-panel.collapsed { width: auto; max-width: none; padding: 6px 10px; }
+.info-panel.collapsed .info-body { display: none; }
+.info-panel.collapsed .info-header { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.info-panel.collapsed .info-title { font-size: 13px; }
+
+/* Desktop / tablet / mobile-desktop-mode (width >= 900px) */
+@media (min-width: 900px) {
+  .floating-toolbar { max-width: 520px; }
+  .info-panel { width: 340px; top: 60px; }
+  .status-bar { font-size: 12px; }
+}

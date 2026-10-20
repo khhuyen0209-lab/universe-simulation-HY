@@ -63,6 +63,7 @@ const toolbar = new FloatingToolbar({
   onResetCamera: () => scene.resetCamera(),
   onToggleOrbits: (v) => scene.setOrbitsVisible(v),
   onToggleLabels: (v) => scene.setLabelsVisible(v),
+  onToggleBelts: (v) => scene.setBeltsVisible(v),
   onSelectPlanet: (key) => { if (key) scene.selectPlanet(key); else scene.selectPlanet(null); },
   onTimeControl: (cmd) => {
     if (cmd.type === 'pause') state.paused = cmd.paused;
