@@ -14,6 +14,7 @@ import config from './config/index.js';
 import CacheStore from './cache/cacheStore.js';
 import healthRouter from './routes/health.js';
 import createPositionsRouter from './routes/positions.js';
+import { TextureService, TEXTURE_MAP } from './services/textureService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // client/dist nằm ở <root>/client/dist khi build xong.
@@ -51,43 +52,44 @@ if (config.rateLimitPerMinute > 0) {
 // Cache RAM (TTL) + snapshot đĩa best-effort.
 const cache = new CacheStore({ ttlMs: config.cacheTtlMs });
 
+// Texture bản đồ hành tinh: proxy tải (không đặt UA browser -> tránh Cloudflare 403),
+// cache RAM + đĩa, tự giải nén nếu file là ZIP, fallback 2k <-> 8k.
+const textureService = new TextureService({
+  cacheDir: config.texture.cacheDir,
+  baseUrl: config.texture.baseUrl,
+  timeoutMs: config.texture.timeoutMs,
+});
+
 // Routes
 app.use('/health', healthRouter);
 app.use('/api', createPositionsRouter({ cache }));
 
-// Proxy tải texture hành tinh (vượt CORS), cache RAM + header cache 30 ngày.
-const TEXTURE_FILES = {
-  sun: '2k_sun.jpg', mercury: '2k_mercury.jpg', venus: '2k_venus_surface.jpg',
-  earth: '2k_earth_daymap.jpg', mars: '2k_mars.jpg', jupiter: '2k_jupiter.jpg',
-  saturn: '2k_saturn.jpg', uranus: '2k_uranus.jpg', neptune: '2k_neptune.jpg',
-};
-const textureCache = new Map();
+// Proxy tải texture hành tinh (vượt CORS). Hỗ trợ ?res=2k|8k (mặc định theo config).
+// Nếu độ phân giải yêu cầu lỗi/không có (vd uranus/neptune không có 8k) -> tự fallback.
+// Cache RAM + đĩa; header cache 1 năm (immutable). Nếu nguồn trả file ZIP -> tự giải nén.
 app.get('/api/texture/:body', async (req, res) => {
-  const file = TEXTURE_FILES[req.params.body];
-  if (!file) return res.status(404).json({ error: 'Khong tim thay texture.' });
-  const cached = textureCache.get(file);
-  if (cached) {
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=2592000');
-    return res.send(cached);
+  const body = (req.params.body || '').toLowerCase();
+  if (!TEXTURE_MAP[body]) {
+    return res.status(404).json({ error: 'Khong tim thay texture.', available: Object.keys(TEXTURE_MAP) });
   }
+  const resAsked = req.query.res === '8k' ? '8k' : '2k';
   try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 20000);
-    const r = await fetch(`https://www.solarsystemscope.com/textures/download/${file}`, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
-    });
-    clearTimeout(t);
-    if (!r.ok) return res.status(502).json({ error: 'Khong tai duoc texture.' });
-    const buf = Buffer.from(await r.arrayBuffer());
-    textureCache.set(file, buf);
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=2592000');
-    res.send(buf);
-  } catch {
-    res.status(502).json({ error: 'Loi tai texture.' });
+    const { buf, mime, actualRes, source } = await textureService.get(body, resAsked);
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Length', buf.length);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Texture-Res', actualRes);
+    res.setHeader('X-Texture-Source', source);
+    return res.send(buf);
+  } catch (err) {
+    console.warn('[texture] loi tai', body, resAsked, ':', err.message);
+    return res.status(502).json({ error: 'Khong tai duoc texture.', detail: config.isProd ? undefined : err.message });
   }
+});
+
+// Trạng thái cache texture (chẩn đoán).
+app.get('/api/textures/status', (req, res) => {
+  res.json({ defaultRes: config.texture.defaultRes, cache: textureService.status() });
 });
 
 // Phục vụ static frontend nếu đã build.
@@ -120,6 +122,10 @@ const server = app.listen(config.port, () => {
   console.log(`[server] NODE_ENV=${config.nodeEnv}, cache TTL=${config.cacheTtlMs}ms, rate-limit=${config.rateLimitPerMinute}/phut`);
   if (!fs.existsSync(CLIENT_DIST)) {
     console.warn('[server] Khong tim thay client/dist — frontend se khong duoc phuc vu. Chay build:client.');
+  }
+  if (config.texture.prewarm) {
+    console.log(`[server] Prewarm texture (${config.texture.defaultRes}) dang chay ngam...`);
+    textureService.prewarm([config.texture.defaultRes]).catch((e) => console.warn('[server] prewarm texture co loi:', e.message));
   }
 });
 

@@ -33,6 +33,18 @@ const config = {
 
   cacheTtlMs: toInt(process.env.CACHE_TTL_MS, 30 * 60 * 1000), // mặc định 30 phút
   rateLimitPerMinute: toInt(process.env.RATE_LIMIT_PER_MINUTE, 60),
+  // Texture bản đồ hành tinh (proxy + cache đĩa).
+  texture: {
+    // Độ phân giải mặc định khi client không gửi ?res=2k|8k. '2k' nhẹ, '8k' nét hơn.
+    defaultRes: process.env.TEXTURE_DEFAULT_RES === '8k' ? '8k' : '2k',
+    // Tải trước texture ở độ phân giải mặc định lúc khởi động (background, không chặn).
+    prewarm: (process.env.TEXTURE_PREWARM || 'true') !== 'false',
+    // Thư mục cache đĩa (bền qua restart, best-effort trên Render).
+    cacheDir: process.env.TEXTURE_CACHE_DIR || path.resolve(__dirname, '../../.cache/textures'),
+    // Timeout tải 1 file (8k to, cần nhiều thời gian hơn JPL).
+    timeoutMs: toInt(process.env.TEXTURE_TIMEOUT_MS, 60000),
+    baseUrl: process.env.TEXTURE_BASE_URL || 'https://www.solarsystemscope.com/textures/download/',
+  },
 
   // URL công khai của backend, dùng khi frontend deploy riêng. Rỗng = cùng origin.
   publicApiUrl: (process.env.PUBLIC_API_URL || '').replace(/\/+$/, ''),
