@@ -501,3 +501,33 @@ html, body {
 .time-panel.collapsed .time-editor { display: none; }
 .time-panel.collapsed { padding: 4px 8px; }
 .time-edit-hint { font-size: 11px; opacity: 0.55; margin-left: auto; }
+
+/* ===== Bảng thông tin THẬT (viền bao + nền xen kẽ) + sửa nút chồng ===== */
+.info-close { position: static !important; top: auto !important; right: auto !important; width: 28px; height: 28px; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.info-grid {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  overflow: hidden;
+  gap: 0;
+  margin: 12px 0;
+}
+.info-grid dt {
+  background: rgba(40, 50, 90, 0.4);
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(120, 150, 220, 0.15);
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+.info-grid dd {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(120, 150, 220, 0.15);
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: break-word;
+}
+.info-grid dt:last-of-type, .info-grid dd:last-of-type { border-bottom: none; }
+.info-panel { z-index: 25; }

@@ -45,6 +45,21 @@
 
     <!-- Cấu hình URL backend: sửa trong file public/config.js (được copy nguyên vào dist/config.js,
          có thể sửa trực tiếp trong dist/ mà KHÔNG cần build lại khi deploy Firebase). -->
+    <script>
+    window.addEventListener('error', function(e){
+      var d = document.createElement('div');
+      d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#800;color:#fff;padding:10px;font:12px/1.4 monospace;white-space:pre-wrap;';
+      d.textContent = 'JS ERROR: ' + e.message + ' @ ' + (e.filename||'') + ':' + (e.lineno||'');
+      document.title = 'ERR: ' + e.message;
+      document.body.appendChild(d);
+    });
+    window.addEventListener('unhandledrejection', function(e){
+      var d = document.createElement('div');
+      d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#800;color:#fff;padding:10px;font:12px/1.4 monospace;white-space:pre-wrap;';
+      d.textContent = 'PROMISE ERROR: ' + (e.reason && (e.reason.message || e.reason.stack) || e.reason);
+      document.body.appendChild(d);
+    });
+    </script>
     <script src="./config.js"></script>
     <script type="module" src="/src/main.js"></script>
   </body>

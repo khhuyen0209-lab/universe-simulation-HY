@@ -3,19 +3,10 @@
 // Nếu chưa tải được (mất mạng / lỗi CORS / đang tải), fallback về texture canvas vẽ sẵn.
 import * as THREE from 'three';
 
-// Nguồn: Solar System Scope (miễn phí, 2K). Nếu CORS chặn, tự fallback canvas.
-const BASE = 'https://www.solarsystemscope.com/textures/download/';
-const TEXTURE_URLS = {
-  sun: BASE + '2k_sun.jpg',
-  mercury: BASE + '2k_mercury.jpg',
-  venus: BASE + '2k_venus_surface.jpg',
-  earth: BASE + '2k_earth_daymap.jpg',
-  mars: BASE + '2k_mars.jpg',
-  jupiter: BASE + '2k_jupiter.jpg',
-  saturn: BASE + '2k_saturn.jpg',
-  uranus: BASE + '2k_uranus.jpg',
-  neptune: BASE + '2k_neptune.jpg',
-};
+// Tải qua backend proxy (/api/texture/:body) để vượt CORS — chắc chắn tải được.
+// Backend cache ảnh + trả header cache 30 ngày; SW + trình duyệt cache tiếp.
+const apiBase = (typeof window !== 'undefined' && window.__API_BASE__ ? window.__API_BASE__ : '').replace(/\/+$/, '');
+function textureUrl(key) { return `${apiBase}/api/texture/${key}`; }
 
 const cache = new Map(); // cache trong bộ nhớ phiên làm việc
 
@@ -25,8 +16,7 @@ const cache = new Map(); // cache trong bộ nhớ phiên làm việc
  */
 export function loadBodyTexture(key, fallbackCanvasTexture) {
   if (cache.has(key)) return Promise.resolve(cache.get(key));
-  const url = TEXTURE_URLS[key];
-  if (!url) return Promise.resolve(fallbackCanvasTexture);
+  const url = textureUrl(key);
   return new Promise((resolve) => {
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin('anonymous');
@@ -39,7 +29,7 @@ export function loadBodyTexture(key, fallbackCanvasTexture) {
         resolve(tex);
       },
       undefined,
-      () => resolve(fallbackCanvasTexture) // lỗi mạng/CORS -> dùng canvas
+      () => resolve(fallbackCanvasTexture) // lỗi mạng -> dùng canvas
     );
   });
 }

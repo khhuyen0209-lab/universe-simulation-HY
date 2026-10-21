@@ -55,6 +55,38 @@ const cache = new CacheStore({ ttlMs: config.cacheTtlMs });
 app.use('/health', healthRouter);
 app.use('/api', createPositionsRouter({ cache }));
 
+// Proxy tải texture hành tinh (vượt CORS), cache RAM + header cache 30 ngày.
+const TEXTURE_FILES = {
+  sun: '2k_sun.jpg', mercury: '2k_mercury.jpg', venus: '2k_venus_surface.jpg',
+  earth: '2k_earth_daymap.jpg', mars: '2k_mars.jpg', jupiter: '2k_jupiter.jpg',
+  saturn: '2k_saturn.jpg', uranus: '2k_uranus.jpg', neptune: '2k_neptune.jpg',
+};
+const textureCache = new Map();
+app.get('/api/texture/:body', async (req, res) => {
+  const file = TEXTURE_FILES[req.params.body];
+  if (!file) return res.status(404).json({ error: 'Khong tim thay texture.' });
+  const cached = textureCache.get(file);
+  if (cached) {
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=2592000');
+    return res.send(cached);
+  }
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 20000);
+    const r = await fetch(`https://www.solarsystemscope.com/textures/download/${file}`, { signal: controller.signal });
+    clearTimeout(t);
+    if (!r.ok) return res.status(502).json({ error: 'Khong tai duoc texture.' });
+    const buf = Buffer.from(await r.arrayBuffer());
+    textureCache.set(file, buf);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=2592000');
+    res.send(buf);
+  } catch {
+    res.status(502).json({ error: 'Loi tai texture.' });
+  }
+});
+
 // Phục vụ static frontend nếu đã build.
 if (fs.existsSync(CLIENT_DIST)) {
   app.use(express.static(CLIENT_DIST, { maxAge: config.isProd ? '1h' : 0, index: 'index.html' }));
