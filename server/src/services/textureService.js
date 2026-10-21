@@ -1,20 +1,17 @@
 // server/src/services/textureService.js
-// Tải + cache + (nếu cần) giải nén bản đồ hành tinh từ solarsystemscope.com.
+// Tải + cache + (nếu cần) giải nén bản đồ hành tinh.
 //
-// QUAN TRỌNG — nguyên nhân lỗi "server không tải được ảnh":
-//   Trang này đứng sau Cloudflare. Nếu đặt header User-Agent giả dạng trình duyệt
-//   (Chrome/...), Cloudflare trả 403 (trang chặn bot). KHÔNG đặt UA, hoặc dùng UA
-//   tối giản của Node -> tải bình thường (HTTP 200).
+// CHIẾN LƯỢC CHỐNG LỖI "Khong tai duoc texture" (theo thứ tự ưu tiên):
+//   1. BUNDLED 2k: bản 2k đã được NHÚNG SẴN trong repo (server/textures-bundled/,
+//      ~4.7MB). Server KHÔNG cần mạng để trả ảnh thật 2k -> luôn thành công.
+//   2. RAM cache (nóng) + ĐĨA cache (server/.cache/textures, bền qua restart).
+//   3. Tải trực tiếp từ solarsystemscope (chỉ cho 8k, hoặc 2k nếu thiếu bundled).
+//      LƯU Ý: KHÔNG đặt User-Agent trình duyệt (Cloudflare chặn 403). Thêm Referer.
+//   4. Nếu tải 8k lỗi / không có (uranus, neptune) -> TỰ FALLBACK về 2k bundled.
+//   5. Nếu file tải về là ZIP -> tự giải nén lấy ảnh bên trong.
 //
-// Đặc điểm:
-//   - 2k: file .jpg trực tiếp (~0.2–0.9 MB).
-//   - 8k: file .jpg trực tiếp (8192×4096, ~3–15 MB). URANUS & NEPTUNE không có bản
-//         8k trên nguồn -> tự fallback về 2k.
-//   - Nếu file tải về là archive (ZIP, phát hiện bằng magic bytes) -> tự giải nén,
-//     lấy file ảnh lớn nhất bên trong rồi mới gửi client. (7z/RAR không hỗ trợ
-//     giải nén thuần Node; nếu gặp sẽ báo lỗi và fallback độ phân giải kia.)
-//   - Cache 2 lớp: RAM (nóng) + ĐĨA (bền, sống qua restart/sleep của Render).
-//   - Chống tải trùng: cùng (body,res) đang tải thì các request khác chờ chung promise.
+// Kết quả: client LUÔN nhận được ảnh thật (ít nhất 2k); canvas chỉ là fallback
+// cuối cùng của client khi ngay cả server cũng lỗi (gần như không xảy ra).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,6 +23,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIME_BY_EXT = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
 };
+const IMG_EXTS = ['jpg', 'jpeg', 'png', 'webp'];
 
 function fileEntry(name) {
   const ext = (name.match(/\.([a-z0-9]+)$/i) || ['', 'jpg'])[1].toLowerCase();
@@ -33,7 +31,7 @@ function fileEntry(name) {
 }
 
 // body -> { '2k': entry | null, '8k': entry | null }
-// 8k của uranus & neptune không tồn tại trên nguồn -> null (tự fallback 2k).
+// 8k của uranus & neptune không tồn tại trên nguồn -> null (tự fallback 2k bundled).
 export const TEXTURE_MAP = {
   sun:         { '2k': fileEntry('2k_sun.jpg'),              '8k': fileEntry('8k_sun.jpg') },
   mercury:     { '2k': fileEntry('2k_mercury.jpg'),          '8k': fileEntry('8k_mercury.jpg') },
@@ -53,64 +51,75 @@ export const TEXTURE_MAP = {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export class TextureService {
-  constructor({ cacheDir, baseUrl = 'https://www.solarsystemscope.com/textures/download/', timeoutMs = 60000, logger = console } = {}) {
+  constructor({
+    cacheDir,
+    bundledDir = path.resolve(__dirname, '../../textures-bundled'),
+    baseUrl = 'https://www.solarsystemscope.com/textures/download/',
+    timeoutMs = 60000,
+    logger = console,
+  } = {}) {
     this.cacheDir = cacheDir || path.resolve(__dirname, '../../.cache/textures');
+    this.bundledDir = bundledDir;
     this.baseUrl = baseUrl.replace(/\/+$/, '') + '/';
     this.timeoutMs = timeoutMs;
     this.logger = logger;
-    this.ram = new Map();      // key `${body}:${res}` -> { buf, ext, mime, actualRes }
-    this.inflight = new Map(); // key -> Promise (chống tải trùng)
+    this.ram = new Map();        // key `${body}:${res}` -> { buf, ext, mime }
+    this.inflight = new Map();   // key -> Promise (chống tải trùng)
+    this.diskIndex = new Set();  // `${body}:${res}:${ext}` trong cache đĩa
+    this.bundledIndex = new Set(); // `${body}:${res}:${ext}` có sẵn trong repo
     this._ensureCacheDir();
-    this._loadFromDisk();
+    this._loadDiskIndex();
+    this._loadBundledIndex();
   }
 
   _ensureCacheDir() {
     try { fs.mkdirSync(this.cacheDir, { recursive: true }); } catch { /* bỏ qua */ }
   }
 
-  _diskPath(body, res, ext) {
-    return path.join(this.cacheDir, `${body}_${res}.${ext}`);
-  }
-
-  // Khởi động: quét cache đĩa có sẵn vào RAM (chỉ metadata, đọc file khi cần).
-  // Để đơn giản & tiết kiệm RAM, ta KHÔNG load toàn bộ byte vào lúc khởi động;
-  // mà chỉ đánh dấu có file trên đĩa. Khi request thật mới đọc vào RAM.
-  _loadFromDisk() {
-    this.diskIndex = new Set(); // `${body}:${res}:${ext}`
+  _scanDirInto(dir, set) {
     try {
-      for (const f of fs.readdirSync(this.cacheDir)) {
+      for (const f of fs.readdirSync(dir)) {
         const m = f.match(/^([a-z-]+)_(2k|8k)\.(jpg|jpeg|png|webp)$/i);
-        if (m) this.diskIndex.add(`${m[1].toLowerCase()}:${m[2].toLowerCase()}:${m[3].toLowerCase()}`);
+        if (m) set.add(`${m[1].toLowerCase()}:${m[2].toLowerCase()}:${m[3].toLowerCase()}`);
       }
-    } catch { /* chưa có thư mục */ }
+    } catch { /* thư mục chưa có */ }
   }
 
+  _loadDiskIndex() { this._scanDirInto(this.cacheDir, this.diskIndex); }
+  _loadBundledIndex() { this._scanDirInto(this.bundledDir, this.bundledIndex); }
+
+  _pathFor(baseDir, body, res, ext) { return path.join(baseDir, `${body}_${res}.${ext}`); }
+
+  // Đọc từ đĩa (cache writable trước, rồi bundled read-only). Lưu vào RAM.
   _readDisk(body, res) {
-    for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
-      const key = `${body}:${res}:${ext}`;
-      if (!this.diskIndex.has(key)) continue;
-      const p = this._diskPath(body, res, ext);
-      try {
-        const buf = fs.readFileSync(p);
-        if (buf.length < 100) continue; // file hỏng/rỗng -> bỏ
-        const entry = { buf, ext, mime: MIME_BY_EXT[ext] || 'image/jpeg', actualRes: res, source: 'disk' };
-        this.ram.set(`${body}:${res}`, entry);
-        return entry;
-      } catch { continue; }
+    const sources = [
+      { dir: this.cacheDir, set: this.diskIndex, source: 'disk' },
+      { dir: this.bundledDir, set: this.bundledIndex, source: 'bundled' },
+    ];
+    for (const { dir, set, source } of sources) {
+      for (const ext of IMG_EXTS) {
+        if (!set.has(`${body}:${res}:${ext}`)) continue;
+        try {
+          const buf = fs.readFileSync(this._pathFor(dir, body, res, ext));
+          if (buf.length < 100) continue;
+          const entry = { buf, ext, mime: MIME_BY_EXT[ext] || 'image/jpeg', actualRes: res, source };
+          this.ram.set(`${body}:${res}`, entry);
+          return entry;
+        } catch { continue; }
+      }
     }
     return null;
   }
 
   _writeDisk(body, res, ext, buf) {
     try {
-      fs.writeFileSync(this._diskPath(body, res, ext), buf);
+      fs.writeFileSync(this._pathFor(this.cacheDir, body, res, ext), buf);
       this.diskIndex.add(`${body}:${res}:${ext}`);
     } catch (e) {
       this.logger.warn?.('[texture] ghi disk cache that bai:', e.message);
     }
   }
 
-  // Phát hiện loại file bằng magic bytes.
   _detectKind(buf) {
     if (buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4B && (buf[2] === 0x03 || buf[2] === 0x05) && buf[3] === 0x04) return 'zip';
     if (buf.length >= 6 && buf[0] === 0x37 && buf[1] === 0x7A && buf[2] === 0xBC && buf[3] === 0xAF && buf[4] === 0x27 && buf[5] === 0x1C) return '7z';
@@ -120,8 +129,7 @@ export class TextureService {
     return 'unknown';
   }
 
-  // Giải nén ZIP, trả file ảnh (jpg/png/webp/tiff/bmp) lớn nhất bên trong.
-  // Dùng Central Directory để định vị chính xác, hỗ trợ cả data descriptor.
+  // Giải nén ZIP, trả file ảnh lớn nhất bên trong (hỗ trợ store + deflate).
   _extractImageFromZip(buf) {
     let eocd = -1;
     const start = Math.max(0, buf.length - 65557);
@@ -164,19 +172,21 @@ export class TextureService {
     return { buf: Buffer.from(out), ext, mime: MIME_BY_EXT[ext] || 'image/jpeg' };
   }
 
-  // Tải 1 lần, KHÔNG đặt User-Agent trình duyệt (tránh Cloudflare 403).
+  // Tải 1 lần từ nguồn. KHÔNG đặt User-Agent browser (Cloudflare 403).
   async _downloadOnce(body, res) {
     const entry = TEXTURE_MAP[body] && TEXTURE_MAP[body][res];
-    if (!entry) return null; // độ phân giải này không có sẵn trên nguồn
+    if (!entry) return null; // độ phân giải này không có trên nguồn
     const url = this.baseUrl + entry.file;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       const r = await fetch(url, {
         signal: controller.signal,
-        // Không set 'User-Agent': Node fetch mặc định (không có UA) hoặc UA tối giản
-        // mới đi qua Cloudflare của solarsystemscope. UA browser -> 403.
-        headers: { Accept: 'image/*,*/*;q=0.8' },
+        // Không set 'User-Agent'. Thêm Referer hợp lệ để giảm tỉ lệ bị chặn.
+        headers: {
+          Accept: 'image/*,*/*;q=0.8',
+          Referer: 'https://www.solarsystemscope.com/textures/',
+        },
         redirect: 'follow',
       });
       if (!r.ok) throw new Error(`HTTP ${r.status} tai ${entry.file}`);
@@ -189,14 +199,12 @@ export class TextureService {
         const ex = this._extractImageFromZip(buf);
         return { buf: ex.buf, ext: ex.ext, mime: ex.mime };
       }
-      // Ảnh thẳng (jpeg/png/webp).
       return { buf, ext: entry.ext, mime: entry.mime };
     } finally {
       clearTimeout(timer);
     }
   }
 
-  // Tải với retry (backoff tuyến tính).
   async _download(body, res) {
     let lastErr;
     for (let attempt = 0; attempt <= 2; attempt++) {
@@ -210,9 +218,7 @@ export class TextureService {
     throw lastErr;
   }
 
-  // API chính: lấy texture cho body với độ phân giải mong muốn.
-  // Tự fallback: nếu res yêu cầu lỗi/không có -> thử res còn lại.
-  // Trả về { buf, mime, actualRes, source }.
+  // API chính. Thứ tự: RAM -> ĐĨA (cache + bundled) -> TẢI. Fallback 8k<->2k.
   async get(body, resAsked) {
     const bodyKey = String(body || '').toLowerCase();
     if (!TEXTURE_MAP[bodyKey]) throw new Error(`Body khong ton tai: ${bodyKey}`);
@@ -220,15 +226,13 @@ export class TextureService {
     const order = asked === '8k' ? ['8k', '2k'] : ['2k', '8k'];
     let lastErr;
     for (const res of order) {
-      if (!TEXTURE_MAP[bodyKey][res]) continue; // độ phân giải không có trên nguồn
+      if (!TEXTURE_MAP[bodyKey][res] && !this._hasAnyDisk(bodyKey, res)) continue;
       const key = `${bodyKey}:${res}`;
-      // 1. RAM cache
       const ramHit = this.ram.get(key);
       if (ramHit) return { ...ramHit, actualRes: res, source: ramHit.source || 'ram' };
-      // 2. Đĩa cache
       const diskHit = this._readDisk(bodyKey, res);
       if (diskHit) return diskHit;
-      // 3. Tải (chống trùng)
+      if (!TEXTURE_MAP[bodyKey][res]) continue; // không có trên nguồn -> bỏ qua tải
       if (!this.inflight.has(key)) {
         this.inflight.set(key, (async () => {
           try {
@@ -254,39 +258,44 @@ export class TextureService {
     throw lastErr || new Error(`Khong tai duoc texture cho ${bodyKey} (ca 2k lan 8k).`);
   }
 
-  // Tải trước (background) để lần request đầu tiên không phải chờ.
+  _hasAnyDisk(body, res) {
+    for (const ext of IMG_EXTS) {
+      if (this.diskIndex.has(`${body}:${res}:${ext}`) || this.bundledIndex.has(`${body}:${res}:${ext}`)) return true;
+    }
+    return false;
+  }
+
+  // Tải trước (background) các độ phân giải CHƯA có sẵn (thường là 8k).
   async prewarm(resolutions = ['2k']) {
     const bodies = Object.keys(TEXTURE_MAP);
     const tasks = [];
     for (const res of resolutions) {
       for (const b of bodies) {
+        if (this._hasAnyDisk(b, res)) continue; // đã có bundled/disk -> khỏi tải
         if (!TEXTURE_MAP[b][res]) continue;
         tasks.push(this.get(b, res).catch((e) => this.logger.warn?.(`[texture] prewarm ${b} ${res} bo qua: ${e.message}`)));
       }
     }
+    if (tasks.length === 0) { this.logger.log?.('[texture] prewarm: da co san tat ca texture, bo qua tai.'); return; }
     await Promise.allSettled(tasks);
     this.logger.log?.(`[texture] prewarm xong ${tasks.length} file.`);
   }
 
-  // Trạng thái cache (cho /api/textures/status).
   status() {
     const out = {};
     for (const [body, ress] of Object.entries(TEXTURE_MAP)) {
       out[body] = {};
       for (const res of ['2k', '8k']) {
-        if (!ress[res]) { out[body][res] = 'unavailable'; continue; }
+        if (!ress[res] && !this._hasAnyDisk(body, res)) { out[body][res] = 'unavailable'; continue; }
         const key = `${body}:${res}`;
         if (this.ram.has(key)) out[body][res] = { cached: 'ram', bytes: this.ram.get(key).buf.length };
-        else if (this._hasDisk(body, res)) out[body][res] = { cached: 'disk' };
-        else out[body][res] = { cached: false };
+        else if (this._hasAnyDisk(body, res)) {
+          const isBundled = IMG_EXTS.some((e) => this.bundledIndex.has(`${body}:${res}:${e}`));
+          out[body][res] = { cached: isBundled ? 'bundled' : 'disk' };
+        } else out[body][res] = { cached: false };
       }
     }
     return out;
-  }
-
-  _hasDisk(body, res) {
-    for (const ext of ['jpg', 'jpeg', 'png', 'webp']) if (this.diskIndex.has(`${body}:${res}:${ext}`)) return true;
-    return false;
   }
 }
 
