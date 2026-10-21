@@ -470,3 +470,34 @@ html, body {
   font-size: 12px;
 }
 #te-apply { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ===== Bảng thông tin: phân ranh rõ, nút không chồng ===== */
+.info-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 10px 0;
+}
+.info-grid dt {
+  color: var(--text-dim);
+  font-size: 12px;
+  align-self: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(120, 150, 220, 0.18);
+}
+.info-grid dd {
+  margin: 0;
+  font-size: 13px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(120, 150, 220, 0.18);
+  overflow-wrap: break-word;
+}
+.info-header { gap: 8px; }
+.info-header .info-icon-btn { flex-shrink: 0; }
+.info-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ===== TimePanel tự thu gọn: chỉ còn thời gian khi không dùng ===== */
+.time-panel.collapsed .time-controls,
+.time-panel.collapsed .time-editor { display: none; }
+.time-panel.collapsed { padding: 4px 8px; }
+.time-edit-hint { font-size: 11px; opacity: 0.55; margin-left: auto; }

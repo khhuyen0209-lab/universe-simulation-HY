@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SUN, PLANETS, PLANET_MAP } from '../astronomy/constants.js';
 import { orbitDisplayPoints, auToDisplay } from '../astronomy/kepler.js';
+import { loadBodyTexture } from '../api/textureLoader.js';
 
 function mulberry32(a) {
   return function () {
@@ -206,6 +207,8 @@ export default class SolarSystemScene {
       const geo = new THREE.SphereGeometry(p.displayRadius, sphereSeg, sphereSeg / 2);
       const tex = makePlanetTexture(p.key, p.color);
       const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8, metalness: 0.05 });
+      // Tải bản đồ thật từ internet khi có mạng (cache), nếu chưa có thì dùng canvas vẽ sẵn.
+      loadBodyTexture(p.key, tex).then((t) => { if (t !== tex) { mat.map = t; mat.needsUpdate = true; } });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.userData.planetKey = p.key;
       this.scene.add(mesh);

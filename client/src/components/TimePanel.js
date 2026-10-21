@@ -29,6 +29,16 @@ export default class TimePanel {
     this.el.className = 'time-panel';
     document.body.appendChild(this.el);
     this._render();
+    this._collapseTimer = null;
+    this.el.addEventListener('pointerenter', () => this._expand());
+    this.el.addEventListener('pointerdown', () => this._expand());
+    this._expand(); // mở ban đầu, sau 5s không tương tác thì tự thu gọn còn thời gian
+  }
+
+  _expand() {
+    this.el.classList.remove('collapsed');
+    clearTimeout(this._collapseTimer);
+    this._collapseTimer = setTimeout(() => this.el.classList.add('collapsed'), 5000);
   }
 
   _render() {

@@ -71,7 +71,7 @@ self.addEventListener('fetch', (event) => {
       if (cached) return cached;
       return fetch(req)
         .then((res) => {
-          if (res && res.status === 200 && (res.type === 'basic' || res.type === 'default')) {
+          if (res && res.status === 200 && (res.type === 'basic' || res.type === 'default' || res.type === 'cors')) {
             const copy = res.clone();
             caches.open(CACHE_RUNTIME).then((c) => c.put(req, copy));
           }
