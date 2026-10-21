@@ -61,6 +61,7 @@ const timePanel = new TimePanel({
     if (cmd.type === 'pause') state.paused = cmd.paused;
     else if (cmd.type === 'speed') state.speed = cmd.value;
     else if (cmd.type === 'jump') { state.simTime = new Date(state.simTime.getTime() + cmd.deltaDays * 86400 * 1000); scheduleFetch(); }
+    else if (cmd.type === 'set') { state.simTime = new Date(cmd.iso); scheduleFetch(); }
   },
 });
 const settingsPanel = new SettingsPanel({

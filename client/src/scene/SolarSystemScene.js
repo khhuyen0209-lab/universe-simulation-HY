@@ -376,7 +376,7 @@ export default class SolarSystemScene {
         bodyR = PLANET_MAP[this.focusKey].displayRadius;
       }
       if (target) {
-        this.controls.minDistance = Math.max(bodyR * 2.2, 1.5);
+        this.controls.minDistance = Math.max(bodyR * 1.2, 0.8);
         this.controls.target.lerp(target, 0.08);
         const dir = this.camera.position.clone().sub(target);
         if (dir.lengthSq() < 1e-6) dir.set(0, 1, 1);

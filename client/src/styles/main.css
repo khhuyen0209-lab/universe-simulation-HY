@@ -435,3 +435,38 @@ html, body {
   .speed-btn { padding: 0 6px; font-size: 10px; }
   .info-panel { top: 50px; right: 50px; width: 230px; max-height: calc(100vh - 70px); }
 }
+
+/* ===== Trình chỉnh sửa thời gian trực tiếp (trong TimePanel) ===== */
+.time-head { cursor: pointer; }
+.time-edit-hint { font-size: 11px; opacity: 0.55; margin-left: auto; }
+.time-editor { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--panel-border); }
+.te-row { display: flex; gap: 6px; }
+.te-input {
+  flex: 1; min-width: 0;
+  background: rgba(10, 14, 30, 0.6);
+  color: var(--text);
+  border: 1px solid rgba(120, 150, 220, 0.3);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+  color-scheme: dark;
+}
+.te-warning {
+  font-size: 11px;
+  color: #ffb347;
+  background: rgba(255, 150, 50, 0.1);
+  border: 1px solid rgba(255, 150, 50, 0.35);
+  border-radius: 8px;
+  padding: 4px 8px;
+  line-height: 1.45;
+}
+.te-btn {
+  flex: 1; min-height: 32px;
+  background: rgba(40, 50, 90, 0.6);
+  color: var(--text);
+  border: 1px solid rgba(120, 150, 220, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+#te-apply { background: var(--accent); border-color: var(--accent); color: #fff; }
